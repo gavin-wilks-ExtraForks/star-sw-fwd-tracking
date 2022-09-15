@@ -56,6 +56,7 @@
 /StRoot/StFpd*                                     @akioogawa
 /StRoot/StFst*                                     @jdbrice           @sunxuhit    @yezhenyu2003   @techuan-huang
 /StRoot/StFtt*                                     @jdbrice
+/StRoot/StFwdTrackMaker				   @jdbrice
 /StRoot/StGenericVertexMaker                       @plexoos           @perevbnlgov @akioogawa   @klendathu2k @fisyak
 /StRoot/StHeavyPool                                @starsdong         @fgeurts
 /StRoot/StIOMaker                                  @plexoos           @perevbnlgov

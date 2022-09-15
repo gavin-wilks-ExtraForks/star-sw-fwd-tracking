@@ -7,7 +7,6 @@
 #include "StFcsTrackMatchMaker.h"
 #include "StEnumerations.h"
 #include "StMessMgr.h"
-//#include "StEventTypes.h"
 #include "StEvent/StEvent.h"
 #include "StEvent/StFcsCollection.h"
 #include "StEvent/StFcsCluster.h"
@@ -36,10 +35,11 @@ StFcsTrackMatchMaker::~StFcsTrackMatchMaker(){}
 int StFcsTrackMatchMaker::Init(){  
   mFcsDb=static_cast<StFcsDb*>(GetDataSet("fcsDb"));  
   if(!mFcsDb){
-    LOG_ERROR  << "StFcsTrackMatchMaker::InitRun Failed to get StFcsDb" << endm;
+    LOG_ERROR  << "StFcsTrackMatchMaker::Init Failed to get StFcsDb" << endm;
     return kStFatal;
   }
   mEpdgeo=new StEpdGeom;
+
   if(mFilename){
     LOG_INFO << "Opening " << mFilename << endm;
     mFile = new TFile(mFilename,"RECREATE");
@@ -79,6 +79,7 @@ int StFcsTrackMatchMaker::Init(){
 }
 
 int StFcsTrackMatchMaker::Finish(){
+  if(mEpdgeo) delete mEpdgeo;
   if(mFile){
     LOG_INFO << "Closing "<<mFilename<<endm;
     mFile->Write();
@@ -120,6 +121,7 @@ int StFcsTrackMatchMaker::Make(){
     //North or south from track
     int ns=0;
     if(trk->mProjections[0].XYZ.x()>0.0) ns=1;
+
     //Look for a Ecal & Hcal match for a track
     for(int ehp=0; ehp<2; ehp++){
       StThreeVectorD proj = trk->mProjections[ehp].XYZ;
@@ -127,8 +129,7 @@ int StFcsTrackMatchMaker::Make(){
       int nclu  = mFcsColl->numberOfClusters(det);
       for(int iclu=0; iclu<nclu; iclu++){
 	StFcsCluster* clu=mFcsColl->clusters(det)[iclu];
-	float energy=clu->energy();
-	if(energy>mMinEnergy[ehp]){
+	if(clu->energy() > mMinEnergy[ehp]){
 	  StThreeVectorD xyz=mFcsDb->getStarXYZfromColumnRow(det,clu->x(),clu->y());
 	  double dx = xyz.x() - proj.x();
 	  double dy = xyz.y() - proj.y();
