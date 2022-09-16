@@ -21,8 +21,8 @@
 #include "StIOMaker/StIOMaker.h"
 #include "StEvent.h"
 #include "StTrack.h"
+#include "StPrimaryVertex.h"
 
-#include "StEventTypes.h"
 #include "StMessMgr.h"
 #include "StDcaGeometry.h"
 #if ROOT_VERSION_CODE < 334081
