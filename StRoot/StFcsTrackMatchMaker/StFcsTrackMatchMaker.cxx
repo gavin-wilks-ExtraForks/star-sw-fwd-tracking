@@ -79,7 +79,7 @@ int StFcsTrackMatchMaker::Init(){
 }
 
 int StFcsTrackMatchMaker::Finish(){
-  if(mEpdgeo) delete mEpdgeo;
+   if(mEpdgeo) delete mEpdgeo; 
   if(mFile){
     LOG_INFO << "Closing "<<mFilename<<endm;
     mFile->Write();
@@ -112,41 +112,50 @@ int StFcsTrackMatchMaker::Make(){
     StFwdTrack* trk=mFwdTrkColl->tracks()[itrk];
     if(trk->didFitConvergeFully()==false) continue;
     ngoodtrk++;
-    if(Debug()){
-      LOG_INFO << Form("Proj0 : %6.2f %6.2f %6.2f",trk->mProjections[0].XYZ.x(),trk->mProjections[0].XYZ.y(),trk->mProjections[0].XYZ.z())<<endm;
-      LOG_INFO << Form("Proj1 : %6.2f %6.2f %6.2f",trk->mProjections[1].XYZ.x(),trk->mProjections[1].XYZ.y(),trk->mProjections[1].XYZ.z())<<endm;
-      LOG_INFO << Form("Proj2 : %6.2f %6.2f %6.2f",trk->mProjections[2].XYZ.x(),trk->mProjections[2].XYZ.y(),trk->mProjections[2].XYZ.z())<<endm;
+    const StThreeVectorD* proj[3];
+    proj[0] = trk->getProjection(0)->getXYZ(); //Ecal
+    proj[1] = trk->getProjection(1)->getXYZ(); //Hcal
+    proj[2] = trk->getProjection(2)->getXYZ(); //Pres=Epdw
+    if(Debug()){      
+      LOG_INFO << Form("Proj0 : %6.2f %6.2f %6.2f",proj[0]->x(),proj[0]->y(),proj[0]->z())<<endm;
+      LOG_INFO << Form("Proj1 : %6.2f %6.2f %6.2f",proj[1]->x(),proj[1]->y(),proj[1]->z())<<endm;
+      LOG_INFO << Form("Proj2 : %6.2f %6.2f %6.2f",proj[2]->x(),proj[2]->y(),proj[2]->z())<<endm;
     }
-
+    
     //North or south from track
     int ns=0;
-    if(trk->mProjections[0].XYZ.x()>0.0) ns=1;
+    if(proj[0]->x()>0.0) ns=1;
 
     //Look for a Ecal & Hcal match for a track
     for(int ehp=0; ehp<2; ehp++){
-      StThreeVectorD proj = trk->mProjections[ehp].XYZ;
       int det = ehp*2 + ns;
       int nclu  = mFcsColl->numberOfClusters(det);
       for(int iclu=0; iclu<nclu; iclu++){
 	StFcsCluster* clu=mFcsColl->clusters(det)[iclu];
 	if(clu->energy() > mMinEnergy[ehp]){
 	  StThreeVectorD xyz=mFcsDb->getStarXYZfromColumnRow(det,clu->x(),clu->y());
-	  double dx = xyz.x() - proj.x();
-	  double dy = xyz.y() - proj.y();
-	  double dr = sqrt(dx*dx + dy*dy);
-	  if(Debug()) LOG_INFO << Form("EHP=%1d dx = %6.2f - %6.2f  = %6.2f dy = %6.2f - %6.2f  = %6.2f dr=%6.2f",
-				       ehp,xyz.x(),proj.x(),dx,xyz.y(),proj.y(),dy,dr) << endm;
+	  if(Debug()){
+	    double dx = xyz.x() - proj[ehp]->x();
+	    double dy = xyz.y() - proj[ehp]->y();
+	    double dr = sqrt(dx*dx + dy*dy);
+	    if(Debug()) LOG_INFO << Form("EHP=%1d dx = %6.2f - %6.2f  = %6.2f dy = %6.2f - %6.2f  = %6.2f dr=%6.2f",
+					 ehp,xyz.x(),proj[ehp]->x(),dx,xyz.y(),proj[ehp]->y(),dy,dr) << endm;
+	  };
 	  if(mFile){
+	    double dx = xyz.x() - proj[ehp]->x();
+	    double dy = xyz.y() - proj[ehp]->y();
+	    double dr = sqrt(dx*dx + dy*dy);	    
 	    if(fabs(dy)<mMaxDistance[ehp]) mHdx[ehp]->Fill(dx);
 	    if(fabs(dx)<mMaxDistance[ehp]) mHdy[ehp]->Fill(dy);
 	    mHdr[ehp]->Fill(dr);
 	  }
-	  if(dr<mMaxDistance[ehp]){
-	    if(ehp==0){trk->addEcalCluster(clu);}
-	    if(ehp==1){trk->addHcalCluster(clu);}
-	    clu->addTrack(trk);
-	    nMatch[ehp]++;
-	  }
+	  double dx = xyz.x() - proj[ehp]->x();  if(dx > mMaxDistance[ehp]) continue;
+	  double dy = xyz.y() - proj[ehp]->y();  if(dy > mMaxDistance[ehp]) continue;
+	  double dr = sqrt(dx*dx + dy*dy); if(dr > mMaxDistance[ehp]) continue;
+	  if(ehp==0){trk->addEcalCluster(clu);}
+	  else      {trk->addHcalCluster(clu);}
+	  clu->addTrack(trk);
+	  nMatch[ehp]++;
 	}
       }
     }
@@ -159,7 +168,7 @@ int StFcsTrackMatchMaker::Make(){
     trk->sortEcalClusterByET();
     trk->sortHcalClusterByET();
     if(Debug()){
-      LOG_INFO << Form("TRK pT=%6.2f Cg=%1d NEcal=%1d NHcal=%1d",
+      LOG_INFO << Form("TRK pT=%6.2f Cg=%1d NEcal=%2lu NHcal=%2lu",
 		       trk->momentum().perp(),trk->charge(),
 		       trk->ecalClusters().size(),
 		       trk->hcalClusters().size())<<endm;
@@ -169,11 +178,14 @@ int StFcsTrackMatchMaker::Make(){
     int ehp=det/2;
     int nclu  = mFcsColl->numberOfClusters(det);
     for(int iclu=0; iclu<nclu; iclu++){
-      StFcsCluster* clu=mFcsColl->clusters(det)[iclu];
-      clu->sortTrackByPT();
+      StFcsCluster* clu = mFcsColl->clusters(det)[iclu];
+      StPtrVecFwdTrack& tracks=clu ->tracks();
+      std::sort(tracks.begin(), tracks.end(), [](const StFwdTrack* a, const StFwdTrack* b){
+	  return b->momentum().perp() < a->momentum().perp();
+	});
       if(Debug()){
 	if(clu->energy() > mMinEnergy[ehp]){
-	  LOG_INFO << Form("FCS DET=%d ET=%6.2f NTrk=%1d",
+	  LOG_INFO << Form("FCS DET=%d ET=%6.2f NTrk=%2lu",
 			   clu->detectorId(), clu->fourMomentum().perp(), clu->tracks().size()) << endm;
 	}
       }
@@ -188,7 +200,11 @@ int StFcsTrackMatchMaker::Make(){
       StFwdTrack* trk=mFwdTrkColl->tracks()[itrk];
       if(trk->didFitConvergeFully()==false) continue;
       mCharge[2]->Fill(trk->charge());
-      mXY[2]->Fill(trk->mProjections[0].XYZ.x(),trk->mProjections[0].XYZ.y());
+      const StThreeVectorD* proj[3];
+      proj[0] = trk->getProjection(0)->getXYZ(); //Ecal
+      proj[1] = trk->getProjection(1)->getXYZ(); //Hcal
+      proj[2] = trk->getProjection(2)->getXYZ(); //Pres=Epdw
+      mXY[2]->Fill(proj[0]->x(),proj[0]->y());
       double pt=trk->momentum().perp();
       int ne=trk->ecalClusters().size();
       int nh=trk->hcalClusters().size();
@@ -201,7 +217,7 @@ int StFcsTrackMatchMaker::Make(){
 	mPtEt[0]->Fill(ete/pt);
 	mPtEt2[0]->Fill(ete,pt);
 	mCharge[0]->Fill(trk->charge());
-	mXY[0]->Fill(trk->mProjections[0].XYZ.x(),trk->mProjections[0].XYZ.y());
+	mXY[0]->Fill(proj[0]->x(),proj[0]->y());
       }
       if(nh>0){
 	StFcsCluster* hclu=trk->hcalClusters()[0]; //Take top ET ones 
@@ -209,7 +225,7 @@ int StFcsTrackMatchMaker::Make(){
 	mPtEt[1]->Fill(eth/pt);
 	mPtEt2[1]->Fill(eth,pt);
 	mCharge[1]->Fill(trk->charge());
-	mXY[1]->Fill(trk->mProjections[1].XYZ.x(),trk->mProjections[1].XYZ.y());
+	mXY[1]->Fill(proj[1]->x(),proj[1]->y());
       }
     }
 

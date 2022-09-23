@@ -29,33 +29,32 @@ namespace genfit {
 
 class StFcsCluster;
 
-struct StFwdTrackProjection {
+class StFwdTrackProjection {
+public:
     StFwdTrackProjection() {}
     StFwdTrackProjection( StThreeVectorD xyz, float c[9] ) {
-        XYZ = xyz;
-        memcpy( cov, c, sizeof(cov) );
+        mXyz = xyz;
+        memcpy( mCov, c, sizeof(mCov) );
     }
-    StThreeVectorD XYZ;
-    float cov[9];
+    StThreeVectorD* getXYZ() {return &mXyz;}
+    float* getCovMatrix() {return mCov;}
+    float dx(){return sqrt( mCov[0] );}
+    float dy(){return sqrt( mCov[4] );}
+    float dz(){return sqrt( mCov[8] );}
 
-    float dx(){
-        return sqrt( cov[0] );
-    }
-    float dy(){
-        return sqrt( cov[4] );
-    }
-    float dz(){
-        return sqrt( cov[8] );
-    }
+protected:
+    StThreeVectorD mXyz;
+    float mCov[9];
 };
 
 class StFwdTrack : public StObject {
 
 public:
     StFwdTrack( genfit::Track * );
-    vector<StFwdTrackProjection> mProjections;
-    genfit::Track *mGenfitTrack;
 
+    StFwdTrackProjection* getProjection(int ehp) {return &mProjections[ehp];}
+    genfit::Track* getGenfitTrack() {return mGenfitTrack;}
+  
     // Quality of the fit
     const bool   didFitConverge() const;
     const bool   didFitConvergeFully() const;
@@ -90,6 +89,8 @@ public:
     void sortHcalClusterByET();
 
 protected:
+    genfit::Track *mGenfitTrack;
+    vector<StFwdTrackProjection> mProjections;
     StPtrVecFcsCluster mEcalClusters;
     StPtrVecFcsCluster mHcalClusters;
 
