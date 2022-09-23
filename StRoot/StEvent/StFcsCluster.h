@@ -79,8 +79,6 @@ public:
     StPtrVecFwdTrack& tracks();
     const StPtrVecFwdTrack& tracks() const;
     void addTrack(StFwdTrack* p);
-    void sortTrackByPT();
-
 
     void print(Option_t *option="") const;
 

@@ -46,12 +46,6 @@ void StFcsCluster::addTrack(StFwdTrack* p){
     mTracks.push_back(p);
 }
 
-void StFcsCluster::sortTrackByPT() {
-    std::sort(mTracks.begin(), mTracks.end(), [](StFwdTrack* a, StFwdTrack* b) {
-        return b->momentum().perp() < a->momentum().perp();
-    });
-}
-
 void StFcsCluster::print(Option_t *option) const {
     cout << Form(
       "StFcsCluster id=%4d ctg=%1d n=%2d nNeigh=%1d nPoints=%1d loc=%7.2f %7.2f PXYZE=%7.2lf %7.2lf %7.2lf %7.2lf E=%7.2lf sigMin/max=%7.2f %7.2f Chi2=%7.2f %7.2f",
