@@ -131,7 +131,7 @@ StPtrVecFcsCluster& StFwdTrack::ecalClusters() { return mEcalClusters; }
 const StPtrVecFcsCluster& StFwdTrack::ecalClusters() const { return mEcalClusters; }
 void StFwdTrack::addEcalCluster(StFcsCluster* p){mEcalClusters.push_back(p);}
 void StFwdTrack::sortEcalClusterByET() {
-    std::sort(mEcalClusters.begin(), mEcalClusters.end(), [](StFcsCluster* a, StFcsCluster* b) {
+    std::sort(mEcalClusters.begin(), mEcalClusters.end(), [](const StFcsCluster* a, const StFcsCluster* b) {
             return b->fourMomentum().perp() < a->fourMomentum().perp();
         });
 }
