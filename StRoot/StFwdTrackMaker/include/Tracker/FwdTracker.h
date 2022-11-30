@@ -493,11 +493,11 @@ class ForwardTrackMaker {
             }
             /***********************************************/
 
-            if (mConfig.get<bool>("TrackFitter:refitGBL", true)) {
-                for (size_t i = 0; i < mGlobalTracks.size(); i++) {
-                    mTrackFitter->refitTrackWithGBL(mGlobalTracks[i]);
-                }
-            }
+            //if (mConfig.get<bool>("TrackFitter:refitGBL", true)) {
+            //    for (size_t i = 0; i < mGlobalTracks.size(); i++) {
+            //        mTrackFitter->refitTrackWithGBL(mGlobalTracks[i]);
+            //    }
+            //}
 
             if (mGenHistograms ){
                 mQualityPlotter->summarizeEvent(mRecoTracks, mcTrackMap, mFitMoms, mFitStatus);
@@ -530,6 +530,10 @@ class ForwardTrackMaker {
 
         LOG_INFO << "Si Fit COMPLETE " << endm;
 
+        for (int i = 0;  i < mTrackResults.size(); i++) {
+            mTrackResults[i].nFST = mNumFstHits[i];
+        }
+
         if ( mGenHistograms ){
             LOG_INFO << "BEFORE Summary " << endm;
             mQualityPlotter->summarizeEvent(mRecoTracks, mcTrackMap, mFitMoms, mFitStatus);
@@ -548,8 +552,6 @@ class ForwardTrackMaker {
         double qual = 0;
         idt = MCTruthUtils::dominantContribution(track, qual);
         
-        
-
 
         TVector3 mcSeedMom;
 
@@ -704,17 +706,24 @@ class ForwardTrackMaker {
         for (auto kv : mcTrackMap) {
             auto mc_track = kv.second;
 
-            if (mc_track->mHits.size() < 4){ // require min 4 hits on track
-                continue;
-            }
+            // ! commented out by Gavin Wilks 10.20.2022
+            //if (mc_track->mHits.size() < 4){ // require min 4 hits on track
+            //    continue;
+            //}
 
             std::set<size_t> uvid;
             Seed_t track;
 
+            int nFttHits = 0;
+
             for (auto h : mc_track->mHits) {
+                if(h->getZ() < 200.0) continue;
                 track.push_back(h);
                 uvid.insert(static_cast<FwdHit *>(h)->_vid);
+                if(h->getZ() > 200.0) nFttHits++;
             }
+    
+            if(nFttHits < 4) continue;
 
             if (uvid.size() == track.size()) { // only add tracks that have one hit per volume
                 mRecoTracks.push_back(track);
@@ -1095,7 +1104,7 @@ class ForwardTrackMaker {
         }     // loop on the global tracks
     }         // ad Si hits via MC associations
 
-    void addSiHits() {
+    /*void addSiHits() {
         FwdDataSource::HitMap_t hitmap = mDataSource->getFstHits();
 
         // loop on global tracks
@@ -1159,8 +1168,9 @@ class ForwardTrackMaker {
                 if ( mGenHistograms ){
                     mHist["FitStatus"]->Fill("AttemptReFit", 1);
                 }
-                // LOG_INFO << "Fitting on GlobalTrack : " << mGlobalTracks[i] << " with " << nSiHitsFound << " si hits" << endm;
+                LOG_INFO << "Start Fitting on GlobalTrack : " << mGlobalTracks[i] << " with " << nSiHitsFound << " si hits" << endm;
                 TVector3 p = mTrackFitter->refitTrackWithSiHits(mGlobalTracks[i], hits_to_add);
+                LOG_INFO << "Finished Fitting on GlobalTrack : " << mGlobalTracks[i] << " with " << nSiHitsFound << " si hits" << endm;
 
                 if ( mGenHistograms ){
                     if (p.Perp() == mFitMoms[i].Perp()) {
@@ -1184,10 +1194,155 @@ class ForwardTrackMaker {
 
         } // loop on globals
     }     // addSiHits
+*/
+    bool isSiHitNearMe(KiTrack::IHit* h, TVector2 msp, double dphi = 0.004 * 9.5, double dr = 2.875) {
+        double probe_phi = TMath::ATan2(msp.Y(), msp.X());
+        double probe_r = sqrt(pow(msp.X(), 2) + pow(msp.Y(), 2));
+
+        LOG_INFO << "MeasuredStateOnPlane LabToPlane: X = " << msp.X() << ", Y = " << msp.Y() << endm;
+        LOG_INFO << "Actual hit:                      X = " << h->getX() << ", Y = " << h->getY() << endm;
+
+        double h_phi = TMath::ATan2(h->getY(), h->getX());
+        double h_r = sqrt(pow(h->getX(), 2) + pow(h->getY(), 2));
+        double mdphi = fabs(h_phi - probe_phi);
+        
+        //LOG_INFO << "MeasuredStateOnPlane LabToPlane: r = " << probe_r << ", phi = " << probe_phi << endm;
+        //LOG_INFO << "Actual hit:                      r = " << h_r << ", phi = " << h_phi << endm;
+
+        if ( mdphi < dphi && fabs( h_r - probe_r ) < dr) return true; // handle 2pi edge
+
+        return false;
+    }
+
+    void addSiHits() {
+        FwdDataSource::HitMap_t hitmap = mDataSource->getFstHits();
+
+        // loop on global tracks
+        for (size_t i = 0; i < mGlobalTracks.size(); i++) {
+            if (mGlobalTracks[i]->getFitStatus(mGlobalTracks[i]->getCardinalRep())->isFitConverged() == false) {
+                // Original Track fit did not converge, skipping 
+                return;
+            }
+            //LOG_INFO << "Attempt ReFit of track with Si Hits, track index = " << i << endm;
+
+            if ( mGenHistograms ){
+                mHist["FitStatus"]->Fill("PossibleReFit", 1);
+            }
+
+            Seed_t hits_near_disk[3];
+
+            try {
+                //loop over each plane
+                for(int p = 0; p < 3; p++) {
+                    std::map<int,TVector2> sensorProjections; // maps sensorId to 2D sensor frame location of projected track
+ 
+                    // Loop over hits and find unique sensors
+                    for(auto h : hitmap[p]) {
+                        int s = static_cast<FwdHit*>(h)->getSensor(); // unique sensor value
+                        if(sensorProjections.count(s) == 0) sensorProjections[s] = mTrackFitter->projectToFst(s, mGlobalTracks[i]);
+                        if(isSiHitNearMe(h,sensorProjections[s])) { 
+                            hits_near_disk[p].push_back(h);
+                            LOG_INFO << "FOUND A MATCHING SILICON HIT" << endm;
+                        }
+                    }
+
+
+                   // Loop over hits and find unique sensors
+                    //for(auto h : hitmap[p]) {
+                    //    sensors.push_back(h->getSensor());
+                    //}
+                    //std::sort( sensors.begin(), sensors.end() );
+                    //sensors.erase( std::unique( sensors.begin(), sensors.end() ), sensors.end() );
+
+                    //project track to all sensors with hits
+                    //for(int s = 0; s < sensors.size(); s++) {
+                    //    auto msp = mTrackFitter->projectToFst(sensors[s], mGlobalTracks[i]);
+                    //    hits_near_disk2 = findSiHitsNearMe(hitmap[2], msp);
+                    //}
+
+                }
+
+                //auto msp2 = mTrackFitter->projectToFst(2, mGlobalTracks[i]);
+                //auto msp1 = mTrackFitter->projectToFst(1, mGlobalTracks[i]);
+                //auto msp0 = mTrackFitter->projectToFst(0, mGlobalTracks[i]);
+
+                // now look for Si hits near these
+                //hits_near_disk2 = findSiHitsNearMe(hitmap[2], msp2);
+                //hits_near_disk1 = findSiHitsNearMe(hitmap[1], msp1);
+                //hits_near_disk0 = findSiHitsNearMe(hitmap[0], msp0);
+            } catch (genfit::Exception &e) {
+                // Failed to project to Si disk: ", e.what()
+            }
+
+            vector<KiTrack::IHit *> hits_to_add;
+
+            size_t nSiHitsFound = 0; // this is really # of disks on which a hit is found
+
+            if ( mGenHistograms ){
+                this->mHist[ "nSiHitsFound" ]->Fill( 1, hits_near_disk[0].size() );
+                this->mHist[ "nSiHitsFound" ]->Fill( 2, hits_near_disk[1].size() );
+                this->mHist[ "nSiHitsFound" ]->Fill( 3, hits_near_disk[2].size() );
+            }
+
+            //  TODO: HANDLE multiple points found?
+            if ( hits_near_disk[0].size() == 1 ) {
+                hits_to_add.push_back( hits_near_disk[0][0] );
+                nSiHitsFound++;
+            } else {
+                hits_to_add.push_back( nullptr );
+            }
+            if ( hits_near_disk[1].size() == 1 ) {
+                hits_to_add.push_back( hits_near_disk[1][0] );
+                nSiHitsFound++;
+            } else {
+                hits_to_add.push_back( nullptr );
+            }
+            if ( hits_near_disk[2].size() == 1 ) {
+                hits_to_add.push_back( hits_near_disk[2][0] );
+                nSiHitsFound++;
+            } else {
+                hits_to_add.push_back( nullptr );
+            }
+
+            if (nSiHitsFound >= 1) {
+                if ( mGenHistograms ){
+                    mHist["FitStatus"]->Fill("AttemptReFit", 1);
+                }
+                //LOG_INFO << "Start Fitting on GlobalTrack : " << mGlobalTracks[i] << " with " << nSiHitsFound << " si hits" << endm;
+                TVector3 p = mTrackFitter->refitTrackWithSiHits(mGlobalTracks[i], hits_to_add);
+                //LOG_INFO << "Finished Fitting on GlobalTrack : " << mGlobalTracks[i] << " with " << nSiHitsFound << " si hits" << endm;
+
+                if ( mGenHistograms ){
+                    if (p.Perp() == mFitMoms[i].Perp()) {
+                        mHist["FitStatus"]->Fill("BadReFit", 1);
+                        LOG_INFO << "BAD REFIT" << endm;
+                    } else {
+                        mHist["FitStatus"]->Fill("GoodReFit", 1);
+                        LOG_INFO << "GOOD REFIT" << endm;
+                    }
+                }
+
+                // mGlobalTracks[i] = mTrackFitter->getTrack();
+                mNumFstHits[i] = nSiHitsFound;
+                mFitMoms[i] = p;
+
+            } else {
+                // unable to refit
+            }
+
+            if ( mGenHistograms ){
+                mHist["FitStatus"]->Fill( TString::Format( "w%uSi", nSiHitsFound ).Data(), 1 );
+            }
+
+        } // loop on globals
+    }     // addSiHits
+
 
     Seed_t findSiHitsNearMe(Seed_t &available_hits, genfit::MeasuredStateOnPlane &msp, double dphi = 0.004 * 9.5, double dr = 2.75) {
         double probe_phi = TMath::ATan2(msp.getPos().Y(), msp.getPos().X());
         double probe_r = sqrt(pow(msp.getPos().X(), 2) + pow(msp.getPos().Y(), 2));
+
+        LOG_INFO << "MeasuredStateOnPlane: X = " << msp.getPos().X() << ", Y = " << msp.getPos().Y() << ", Z = " << msp.getPos().Z() << endm;
 
         Seed_t found_hits;
 

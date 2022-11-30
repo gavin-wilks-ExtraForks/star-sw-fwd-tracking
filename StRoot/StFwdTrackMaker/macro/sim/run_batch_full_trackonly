@@ -1,0 +1,9 @@
+
+
+nEvents=10
+
+jobId=$1
+echo root4star -b -q -l 'sim/fwd_tracking.C( '"${nEvents}"', "sim.fzd", "sim/full_track.xml" )' 
+time root4star -b -q -l 'sim/fwd_tracking.C( '"${nEvents}"', "sim.fzd", "sim/full_track.xml" )'
+
+

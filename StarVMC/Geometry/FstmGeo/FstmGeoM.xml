@@ -819,7 +819,7 @@ to avoid interference. This is equivalent to rotate the middle ring by 180 deg a
         -->
 	zcenter = mothervol_z+mothervol_dz
         <Create    block="FSTM" />
-        <Placement block="FSTM" in="CAVE" x="0.0" y="0.0" z="zcenter" >
+        <Placement block="FSTM" in="CAVE" group="TpcRefSys" x="0.0" y="0.0" z="zcenter" >
             <Misalign table="Geometry/fst/fstOnTpc" row="0"/>
         </Placement>
 
@@ -870,7 +870,7 @@ to avoid interference. This is equivalent to rotate the middle ring by 180 deg a
                     </If-->
 
                     halfid = 0
-                    <If expr="iwedgem.ge.5">
+                    <If expr="iwedgem.ge.6">
                         halfid = 1
                     </If>
                                        

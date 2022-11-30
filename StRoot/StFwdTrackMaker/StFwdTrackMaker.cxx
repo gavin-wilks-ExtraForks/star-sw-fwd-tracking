@@ -4,6 +4,7 @@
 #include "StFwdTrackMaker/include/Tracker/TrackFitter.h"
 #include "StFwdTrackMaker/include/Tracker/FwdGeomUtils.h"
 #include "StFwdTrackMaker/include/Tracker/ObjExporter.h"
+#include "StFwdTrackMaker/StFwdGbl.h"
 
 #include "KiTrack/IHit.h"
 #include "GenFit/Track.h"
@@ -224,6 +225,7 @@ class ForwardTracker : public ForwardTrackMaker {
             mQualityPlotter = 0;
         }
         if (mTrackFitter){
+            mTrackFitter->finish();
             delete mTrackFitter;
             mTrackFitter= 0;
         }
@@ -723,7 +725,7 @@ void StFwdTrackMaker::loadFstHits( FwdDataSource::McTrackMap_t &mcTrackMap, FwdD
                     float vR = fsthits[ih]->localPosition(0);
                     float vPhi = fsthits[ih]->localPosition(1);
                     float vZ = fsthits[ih]->localPosition(2);
-
+                    cout << "vR = " << vR << "    vPhi = " << vPhi << "    vZ = " << endl;
                     const float dz0 = fabs( vZ - 151.75 );
                     const float dz1 = fabs( vZ - 165.248 );
                     const float dz2 = fabs( vZ - 178.781 );
@@ -770,6 +772,56 @@ void StFwdTrackMaker::loadFstHits( FwdDataSource::McTrackMap_t &mcTrackMap, FwdD
 } // loadFstHits
 
 void StFwdTrackMaker::loadFstHitsFromStEvent( FwdDataSource::McTrackMap_t &mcTrackMap, FwdDataSource::HitMap_t &hitMap, int count ){
+    {
+      St_g2t_fts_hit *g2t_fsi_hits = (St_g2t_fts_hit *)GetDataSet("geant/g2t_fsi_hit");
+
+      if ( !g2t_fsi_hits )
+          return;
+
+      int nfsi = g2t_fsi_hits->GetNRows();
+      
+
+      // reuse this to store cov mat
+      TMatrixDSym hitCov3(3);
+      
+      if ( mGenHistograms ) this->mHistograms["nHitsFSI"]->Fill(nfsi);
+      // LOG_INFO << "# fsi hits = " << nfsi << endm;
+
+      mTreeData.fstN = 0;
+      for (int i = 0; i < nfsi; i++) {
+
+          g2t_fts_hit_st *git = (g2t_fts_hit_st *)g2t_fsi_hits->At(i);
+          
+          if (0 == git)
+              continue; // geant hit
+          
+          int track_id = git->track_p;
+          int volume_id = git->volume_id;  // 4, 5, 6
+          int d = volume_id / 1000;        // disk id
+          int w = (volume_id % 1000) / 10; // wedge id
+          int s = volume_id % 10;          // sensor id
+          
+          int plane_id = d - 4;
+          float x = git->x[0];
+          float y = git->x[1];
+          float z = git->x[2];
+
+          hitCov3 = makeSiCovMat( TVector3( x, y, z ), mFwdConfig );
+          FwdHit *hit = new FwdHit(count++, x, y, z, d, track_id, hitCov3, mcTrackMap[track_id]);
+          //mFstHits.push_back( TVector3( x, y, z )  );
+
+          //mTreeData.fstX.push_back( x );
+          //mTreeData.fstY.push_back( y );
+          //mTreeData.fstZ.push_back( z );
+          //mTreeData.fstTrackId.push_back( track_id );
+
+          //mTreeData.fstN++;
+
+          // Add the hit to the hit map
+          if (mcTrackMap[track_id])
+            mcTrackMap[track_id]->addHit(hit);
+      }
+    }
 
     // Get the StEvent handle
     StEvent *event = (StEvent *)this->GetDataSet("StEvent");
@@ -803,6 +855,7 @@ void StFwdTrackMaker::loadFstHitsFromStEvent( FwdDataSource::McTrackMap_t &mcTra
         hitCov3(2,0) = covmat[2][0]; hitCov3(2,1) = covmat[2][1]; hitCov3(2,2) = covmat[2][2];
 
         FwdHit *fhit = new FwdHit(count++, hit->position().x(), hit->position().y(), hit->position().z(), hit->layer(), hit->idTruth(), hitCov3, mcTrackMap[hit->idTruth()]);
+        fhit->setSensor(hit->volumeId());
         // LOG_INFO << "FST HIT( " << hit->position().x() << ", " << hit->position().y() << ", " << hit->position().z() << ", " << hit->layer() << endm;
         size_t index = hit->layer()-4;
         // LOG_INFO << "FST Layer = " << hit->layer() << ", " << TString::Format("fsi%luHitMapZ", index).Data() << endm;

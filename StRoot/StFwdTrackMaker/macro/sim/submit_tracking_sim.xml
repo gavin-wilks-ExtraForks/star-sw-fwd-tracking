@@ -1,0 +1,27 @@
+<job  name="FwdTracking"  simulateSubmission="false" nProcesses="3" >
+
+    <!--input URL="catalog:star.bnl.gov?filetype=daq_reco_MuDst,storage=local" nFiles="500" /-->
+
+    <stdout URL="file:/gpfs01/star/pwg/gwilks3/scratch/ForwardTracking/log/log_$JOBID.log" />
+    <stderr URL="file:/gpfs01/star/pwg/gwilks3/scratch/ForwardTracking/log/err_$JOBID.err" />
+
+    <output fromScratch="*.root" toURL="file:/gpfs01/star/pwg/gwilks3/scratch/ForwardTracking/out/" />
+
+    <command>
+        starver dev
+        source StRoot/StFwdTrackMaker/macro/env.sh
+        ./StRoot/StFwdTrackMaker/macro/sim/run_batch_full 250 $JOBID
+    </command>
+
+    <SandBox installer="ZIP">
+        <Package>
+            <File>file:./StRoot</File>
+            <File>file:./.sl73_gcc485</File>
+            <File>file:./fGeom_dev2021.root</File>
+        </Package>
+    </SandBox>
+
+    <Generator>
+        <Location>/gpfs01/star/pwg/gwilks3/scratch/ForwardTracking/gen</Location>
+    </Generator>
+</job>

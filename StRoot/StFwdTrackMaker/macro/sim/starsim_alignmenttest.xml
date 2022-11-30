@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+ <job nProcesses="&njobs;" simulateSubmission="false">
+  <command>
+    source ./updatedenv2.sh
+    root4star -l -b -q ./StRoot/StFwdTrackMaker/macro/sim/starsim_alignmenttest.C\(\"sim\",&nEvents;,&nTracks;,\"mu+\",4.99,5.0,2.3,3.5,1.2,1.7,$JOBINDEX,\"&geomtag;\"\)
+    root4star -l -b -q ./StRoot/StFwdTrackMaker/macro/sim/fwd_tracking.C\(&nEvents;,\"sim.fzd\",\"./StRoot/StFwdTrackMaker/macro/sim/fast_track.xml\"\)
+  </command>
+
+  <stdout URL="file:&logdir;/fzd_$JOBID.out" />
+  <stderr URL="file:&logdir;/fzd_$JOBID.err" />
+
+  <Generator>
+   <Location>./schedinfo</Location>
+  </Generator>
+  <SandBox installer="ZIP">
+   <Package> 
+    <File>file:&dir;/.sl73_x8664_gcc485/</File> 
+    <File>file:&dir;/StRoot/</File>
+    <File>file:&dir;/StarDb/</File>
+    <File>file:&dir;/StarVMC/</File>
+    <File>file:&dir;/fGeom.root</File>
+    <File>file:&dir;/updatedenv2.sh</File>
+   </Package>
+  </SandBox>
+
+  <output fromScratch="full_track.root" toURL="file:&outdir;/full_track_$JOBID.root" />
+  <output fromScratch="fast_track.root" toURL="file:&outdir;/fast_track_$JOBID.root" />
+  <output fromScratch="fwdtree.root" toURL="file:&outdir;/fwdtree_$JOBID.root" />
+  <output fromScratch="sim.FastSimu.QA.root" toURL="file:&outdir;/fstQA_$JOBID.root" />
+  <output fromScratch="millefile.dat" toURL="file:&outdir;/millefile_$JOBID.dat" />
+  <output fromScratch="gbl.root" toURL="file:&outdir;/gbl_$JOBID.root" />
+ </job>

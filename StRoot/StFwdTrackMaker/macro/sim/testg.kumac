@@ -1,4 +1,4 @@
-MACRO testg seed=0 tag=dev2021 nevents=100 ntrack=10 g3id=5 ptmn=0.2 ptmx=5.0 etamn=2.5 etamx=4.0 ofn=tests/sim.fzd
+MACRO testg seed=0 tag=dev2022m nevents=100 ntrack=10 g3id=5 ptmn=0.2 ptmx=5.0 etamn=2.5 etamx=4.0 ofn=tests/sim.fzd
 DETP GEOM [tag]
 GEXE $STAR_LIB/libStarAgmlUtil.so
 GEXE $STAR_LIB/xgeometry.so

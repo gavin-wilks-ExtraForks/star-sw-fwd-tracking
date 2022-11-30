@@ -21,11 +21,19 @@ void fwd_tracking(      int n = 500,
     TString _chain;
     // fcsWFF fcsCluster
     if ( useFCS )
-        _chain = Form("fzin %s sdt20211016 StEvent ReverseField agml usexgeom bigbig fstFastSim fttFastSim fcsSim fcsWFF fcsCluster fwdTrack", _geom.Data());
+        _chain = Form("fzin %s sdt20211016 StEvent FieldOff agml usexgeom bigbig fstFastSim fttFastSim fcsSim fcsWFF fcsCluster fwdTrack", _geom.Data());
     else 
-        _chain = Form("fzin %s sdt20211016 StEvent ReverseField agml usexgeom bigbig fstFastSim fttFastSim fcsSim fwdTrack", _geom.Data());
+        _chain = Form("fzin %s sdt20211016 StEvent FieldOff agml usexgeom bigbig fstFastSim fttFastSim fcsSim fwdTrack", _geom.Data());
+    //if ( useFCS )
+    //    _chain = Form("fzin %s sdt20211016 StEvent ReverseField agml usexgeom bigbig fstFastSim fttFastSim fcsSim fcsWFF fcsCluster fwdTrack", _geom.Data());
+    //else 
+    //    _chain = Form("fzin %s sdt20211016 StEvent ReverseField agml usexgeom bigbig fstFastSim fttFastSim fcsSim fwdTrack", _geom.Data());
 
     gSystem->Load( "libStarRoot.so" );
+    //gSystem->Load("libgenfit2.so");
+    //gSystem->Load( "/cvmfs/star.sdcc.bnl.gov/star-spack/spack/opt/spack/linux-rhel7-x86_64/gcc-4.8.5/genfit-b496504a-ugw4tnqv545s3auntywhodjvfma7fruh/lib/libgenfit2.so" );
+               
+
     gROOT->SetMacroPath(".:/star-sw/StRoot/macros/:./StRoot/macros:./StRoot/macros/graphics:./StRoot/macros/analysis:./StRoot/macros/test:./StRoot/macros/examples:./StRoot/macros/html:./StRoot/macros/qa:./StRoot/macros/calib:./StRoot/macros/mudst:/afs/rhic.bnl.gov/star/packages/DEV/StRoot/macros:/afs/rhic.bnl.gov/star/packages/DEV/StRoot/macros/graphics:/afs/rhic.bnl.gov/star/packages/DEV/StRoot/macros/analysis:/afs/rhic.bnl.gov/star/packages/DEV/StRoot/macros/test:/afs/rhic.bnl.gov/star/packages/DEV/StRoot/macros/examples:/afs/rhic.bnl.gov/star/packages/DEV/StRoot/macros/html:/afs/rhic.bnl.gov/star/packages/DEV/StRoot/macros/qa:/afs/rhic.bnl.gov/star/packages/DEV/StRoot/macros/calib:/afs/rhic.bnl.gov/star/packages/DEV/StRoot/macros/mudst:/afs/rhic.bnl.gov/star/ROOT/36/5.34.38/.sl73_x8664_gcc485/rootdeb/macros:/afs/rhic.bnl.gov/star/ROOT/36/5.34.38/.sl73_x8664_gcc485/rootdeb/tutorials");
     gROOT->LoadMacro("bfc.C");
     bfc(-1, _chain, inFile);
@@ -68,6 +76,7 @@ void fwd_tracking(      int n = 500,
             fstFastSim->SetInEfficiency(0.1); // inefficiency of Si 
 
         fstFastSim->SetQAFileName(qaoutname);
+        fstFastSim->SetFillHist(true);
 
         cout << "Adding StFstFastSimMaker to chain" << endl;
         chain->AddMaker(fstFastSim);
